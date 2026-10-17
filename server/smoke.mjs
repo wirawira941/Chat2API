@@ -240,7 +240,7 @@ const main = async () => {
              window._esReadyState = 'open'
              // Trigger status change after confirmed connection
              window.electronAPI.invoke('proxy:stop')
-               .then(() => window.electronAPI.invoke('proxy:start', [8080]))
+               .then(() => window.electronAPI.invoke('proxy:start', [30128]))
            }
            source.onerror = (e) => {
              window._esReadyState = 'error'

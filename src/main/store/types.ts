@@ -793,7 +793,7 @@ export function sanitizeDeepSeekModelOverrides(
  * Default Application Configuration
  */
 export const DEFAULT_CONFIG: AppConfig = {
-  proxyPort: 8080,
+  proxyPort: 30128,
   proxyHost: '127.0.0.1',
   loadBalanceStrategy: 'round-robin',
   modelMappings: createDefaultModelMappings(),

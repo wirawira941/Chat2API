@@ -47,7 +47,7 @@ interface ProxyState {
 }
 
 const DEFAULT_PROXY_CONFIG: ProxyConfig = {
-  port: 8080,
+  port: 30128,
   host: '127.0.0.1',
   timeout: 60000,
   retryCount: 3,

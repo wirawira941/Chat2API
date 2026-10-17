@@ -22,7 +22,7 @@ export class ProxyServer {
   private app: Koa
   private router: Router
   private server: HttpServer | null = null
-  private port: number = 8080
+  private port: number = 30128
   private host: string = '127.0.0.1'
 
   constructor() {
