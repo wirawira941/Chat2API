@@ -34,7 +34,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22+ ships a global WebSocket, which the CDP client in smoke.mjs uses.
+          node-version: '22'
           cache: 'npm'
 
       # --ignore-scripts keeps `canvas` (a devDependency used by desktop tests)

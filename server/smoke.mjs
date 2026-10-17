@@ -95,6 +95,14 @@ const waitFor = async (fn, timeoutMs, label) => {
 }
 
 const main = async () => {
+  if (typeof WebSocket === 'undefined') {
+    console.error(
+      '\x1b[31mThis Node has no global WebSocket (needs Node 22+).\x1b[0m\n' +
+        `Running: ${process.version}. Upgrade Node, or skip the browser test.`
+    )
+    process.exit(2)
+  }
+
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat2api-smoke-'))
   const chrome = spawn(
     CHROME,
