@@ -189,25 +189,6 @@ export function AddProviderDialog({
   } | null>(null)
   const [bookmarklet, setBookmarklet] = useState<string | null>(null)
   const [bookmarkletCopied, setBookmarkletCopied] = useState(false)
-
-  useEffect(() => {
-    if (!webLoginGuide || !selectedProviderData?.id) {
-      setBookmarklet(null)
-      return
-    }
-    let cancelled = false
-    window.electronAPI?.oauth
-      .getBookmarklet(selectedProviderData.id)
-      .then((value) => {
-        if (!cancelled) setBookmarklet(value)
-      })
-      .catch(() => {
-        if (!cancelled) setBookmarklet(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [webLoginGuide, selectedProviderData?.id])
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({})
   const [copiedFields, setCopiedFields] = useState<Record<string, boolean>>({})
 
@@ -249,6 +230,25 @@ export function AddProviderDialog({
   const selectedProviderData = selectedProvider 
     ? providers.find((p) => p.id === selectedProvider) 
     : null
+
+  useEffect(() => {
+    if (!webLoginGuide || !selectedProviderData?.id) {
+      setBookmarklet(null)
+      return
+    }
+    let cancelled = false
+    window.electronAPI?.oauth
+      .getBookmarklet(selectedProviderData.id)
+      .then((value) => {
+        if (!cancelled) setBookmarklet(value)
+      })
+      .catch(() => {
+        if (!cancelled) setBookmarklet(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [webLoginGuide, selectedProviderData?.id])
 
   const supportsOAuth = selectedProviderData && ['deepseek', 'glm', 'kimi', 'mimo', 'minimax', 'qwen', 'qwen-ai', 'zai', 'perplexity'].includes(selectedProviderData.id)
 
