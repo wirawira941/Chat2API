@@ -29,6 +29,23 @@ export interface InAppLoginOptions {
 const DEFAULT_TIMEOUT = 300000 // 5 minutes
 const MIN_LOGIN_TIME = 5000 // Minimum time before checking tokens (5 seconds)
 
+/**
+ * Whether this process can host a real Chromium login window.
+ *
+ * The headless build replaces `electron` with a Node shim whose BrowserWindow is
+ * an inert object: `loadURL` resolves immediately and nothing is ever shown.
+ * Real Electron windows expose `nativeWindowHandle`, so its absence is a
+ * reliable signal, and an explicit env override keeps the check honest for
+ * future embedders.
+ */
+function canOpenLoginWindow(): boolean {
+  if (process.env.CHAT2API_HEADLESS === '1') return false
+  const probe = new BrowserWindow({ show: false })
+  const native = typeof (probe as unknown as { nativeWindowHandle?: unknown }).nativeWindowHandle
+  probe.destroy()
+  return native === 'function'
+}
+
 export class InAppLoginManager extends EventEmitter {
   private loginWindow: BrowserWindow | null = null
   private loginSession: Session | null = null
@@ -78,6 +95,18 @@ export class InAppLoginManager extends EventEmitter {
       }, options.timeout || DEFAULT_TIMEOUT)
 
       this.emit('status', { status: 'starting', message: 'Opening login window...' })
+
+      // Headless builds have no Chromium window to embed, and a regular browser
+      // tab is a different origin whose storage cannot be read. Report it right
+      // away so the UI can switch to the "open site + paste token" flow instead
+      // of waiting out the 5-minute login timeout.
+      if (!canOpenLoginWindow()) {
+        this.complete({
+          success: false,
+          error: 'In-app login window is not available in the web build',
+        })
+        return
+      }
 
       this.createLoginWindow()
       this.setupTokenInterception()

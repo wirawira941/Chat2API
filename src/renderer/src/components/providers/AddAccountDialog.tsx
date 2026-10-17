@@ -165,6 +165,17 @@ export function AddAccountDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isOAuthLoading, setIsOAuthLoading] = useState(false)
   const [oauthStatus, setOAuthStatus] = useState<string>('')
+  // Populated when the in-app login window is unavailable (web build): the UI
+  // then shows the provider's login URL and token copy steps instead.
+  const [webLoginGuide, setWebLoginGuide] = useState<{
+    loginUrl: string
+    steps: string[]
+    tokenKey: string
+    tokenLabel: string
+    storageType: 'localStorage' | 'cookie' | 'other'
+    placeholder?: string
+    helpUrl?: string
+  } | null>(null)
 
   const isEditing = !!editingAccount
   const builtinProvider = provider as BuiltinProviderConfig | null
@@ -320,6 +331,26 @@ export function AddAccountDialog({
         })
       } else {
         const errorMsg = result?.error || ''
+
+        // The web build has no in-app Chromium window to scrape, so the main
+        // process reports that the login window could not be opened. Fall back
+        // to the 9router-style flow: open the provider site in a real tab and
+        // let the user paste the token into the manual form.
+        const noWindow =
+          !errorMsg ||
+          /login window|window was closed|not available|unsupported/i.test(errorMsg)
+
+        if (noWindow) {
+          const guides = await window.electronAPI?.oauth.getGuides?.()
+          const guide = guides?.[provider.id]
+          if (guide) {
+            setWebLoginGuide(guide)
+            setActiveTab('manual')
+            setOAuthStatus('')
+            return
+          }
+        }
+
         const translatedError = errorMsg === 'Login window was closed' 
           ? t('providers.loginWindowClosed')
           : errorMsg === 'A login window is already open'
@@ -330,6 +361,19 @@ export function AddAccountDialog({
         setOAuthStatus(translatedError)
       }
     } catch (error) {
+      // Same fallback when the IPC call itself fails (headless bridge, etc.).
+      try {
+        const guides = await window.electronAPI?.oauth.getGuides?.()
+        const guide = guides?.[provider.id]
+        if (guide) {
+          setWebLoginGuide(guide)
+          setActiveTab('manual')
+          setOAuthStatus('')
+          return
+        }
+      } catch {
+        // fall through to the generic message
+      }
       const errorMessage = error instanceof Error ? error.message : t('providers.loginFailed')
       setOAuthStatus(errorMessage)
     } finally {
@@ -383,6 +427,33 @@ export function AddAccountDialog({
                 </TabsList>
 
                 <TabsContent value="manual" className="mt-4">
+                  {webLoginGuide && (
+                    <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                      <p className="mb-2 font-medium">
+                        Login in your browser, then paste the token below.
+                      </p>
+                      <ol className="mb-3 list-decimal space-y-1 pl-5 text-muted-foreground">
+                        {webLoginGuide.steps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ol>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() =>
+                            window.electronAPI?.invoke('app:openExternal', webLoginGuide.loginUrl)
+                          }
+                        >
+                          <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                          Open {new URL(webLoginGuide.loginUrl).hostname}
+                        </Button>
+                        <span className="text-xs text-muted-foreground">
+                          Field to copy: <code className="rounded bg-muted px-1">{webLoginGuide.tokenKey}</code>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <CredentialFieldsForm
                     fields={credentialFields}
                     credentials={credentials}

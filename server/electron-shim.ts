@@ -28,6 +28,11 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { Readable } from 'node:stream'
 
+// This module stands in for Electron, so its mere presence means "no Chromium".
+// Platform code checks this flag to degrade gracefully (e.g. the in-app login
+// window reports "not available" instead of waiting out its timeout).
+process.env.CHAT2API_HEADLESS = '1'
+
 // ---------------------------------------------------------------------------
 // Paths
 // ---------------------------------------------------------------------------

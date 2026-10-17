@@ -231,6 +231,22 @@ const oauthAPI = {
   
   cancelInAppLogin: (): Promise<void> =>
     ipcRenderer.invoke(IpcChannels.OAUTH_CANCEL_IN_APP_LOGIN),
+
+  /**
+   * Login instructions per provider (login URL + where to copy the token).
+   * The web build has no in-app Chromium window to scrape, so the UI shows
+   * these steps instead of an "OAuth" popup.
+   */
+  getGuides: (): Promise<Record<string, {
+    loginUrl: string
+    steps: string[]
+    tokenKey: string
+    tokenLabel: string
+    storageType: 'localStorage' | 'cookie' | 'other'
+    placeholder?: string
+    helpUrl?: string
+  }>> =>
+    ipcRenderer.invoke(IpcChannels.OAUTH_GET_GUIDES),
   
   isInAppLoginOpen: (): Promise<boolean> =>
     ipcRenderer.invoke(IpcChannels.OAUTH_IN_APP_LOGIN_STATUS),

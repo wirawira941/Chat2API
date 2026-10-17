@@ -85,6 +85,23 @@ class HttpIpcError extends Error {
 }
 
 async function invoke(channel: string, ...args: unknown[]): Promise<any> {
+  // In the desktop build this opens the OS browser via Electron's shell module.
+  // In a browser there is no main process to do that, and routing it through
+  // the server would lose the user-gesture context — popup blockers drop the
+  // window. So handle it here, synchronously inside the click handler.
+  if (channel === 'app:openExternal') {
+    const url = String(args[0] ?? '')
+    if (url) {
+      const opened = window.open(url, '_blank', 'noopener,noreferrer')
+      if (!opened) {
+        // Popup blocked: fall back to same-tab navigation so the user still
+        // reaches the login page instead of seeing nothing happen.
+        window.location.href = url
+      }
+    }
+    return undefined
+  }
+
   const response = await fetch(`${BASE}/ipc`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

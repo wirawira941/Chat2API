@@ -268,6 +268,33 @@ const main = async () => {
     const text = await evaluate(cdp, sessionId, 'document.body.innerText.slice(0, 400)')
     check('dashboard renders text', typeof text === 'string' && text.trim().length > 10)
 
+    // 7. OAuth fallback: with no Chromium window, the UI must offer the
+    // "open provider site + paste token" flow instead of a dead popup.
+    const oauthFallback = await evaluate(
+      cdp,
+      sessionId,
+      `(async () => {
+         const guides = await window.electronAPI.oauth.getGuides()
+         const ds = guides?.deepseek
+         const login = await window.electronAPI.oauth.startInAppLogin('deepseek', 'deepseek')
+         return {
+           hasDeepseekGuide: !!ds,
+           loginUrl: ds?.loginUrl ?? null,
+           tokenKey: ds?.tokenKey ?? null,
+           stepCount: ds?.steps?.length ?? 0,
+           loginFailedFast: login?.success === false,
+           error: login?.error ?? null,
+         }
+       })()`
+    )
+    check('oauth guide available for deepseek', oauthFallback.hasDeepseekGuide, oauthFallback.loginUrl ?? '')
+    check('oauth guide lists copy steps', oauthFallback.stepCount > 0, `${oauthFallback.stepCount} steps`)
+    check(
+      'startInAppLogin reports unavailable (no hang)',
+      oauthFallback.loginFailedFast === true,
+      oauthFallback.error ?? ''
+    )
+
     if (consoleErrors.length) {
       check('no page console errors', false, consoleErrors.slice(0, 3).join(' | '))
     } else {

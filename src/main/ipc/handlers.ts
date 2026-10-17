@@ -8,6 +8,7 @@ import { ProviderChecker } from '../providers/checker'
 import { CustomProviderManager } from '../providers/custom'
 import { getBuiltinProviders, getBuiltinProvider } from '../providers/builtin'
 import { oauthManager } from '../oauth/manager'
+import { TOKEN_EXTRACTION_GUIDES, type TokenExtractionGuide } from '../oauth/guides'
 import { ProxyServer } from '../proxy/server'
 import { proxyStatusManager } from '../proxy/status'
 import { sessionManager } from '../proxy/sessionManager'
@@ -702,6 +703,14 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
   ipcMain.handle(IpcChannels.OAUTH_CANCEL_IN_APP_LOGIN, async (): Promise<void> => {
     console.log('Cancel in-app OAuth login')
     oauthManager.cancelInAppLogin()
+  })
+
+  // The desktop build opens a Chromium window and scrapes the token out of it.
+  // A browser tab cannot be scraped (different origin, separate cookie jar), so
+  // the web build hands the UI the login URL plus copy-paste instructions and
+  // lets the user paste the token back — the same approach as 9router.
+  ipcMain.handle(IpcChannels.OAUTH_GET_GUIDES, async (): Promise<Record<string, TokenExtractionGuide>> => {
+    return TOKEN_EXTRACTION_GUIDES
   })
 
   ipcMain.handle(IpcChannels.OAUTH_IN_APP_LOGIN_STATUS, async (): Promise<boolean> => {

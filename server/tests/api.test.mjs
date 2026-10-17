@@ -173,6 +173,39 @@ test('unknown paths fall back to the SPA shell', async () => {
   assert.match(await response.text(), /<div id="root">/)
 })
 
+test('oauth guides are exposed for manual token login', async () => {
+  const call = async (channel, args = []) =>
+    (
+      await (
+        await fetch(`${BASE}/api/ipc`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel, args }),
+        })
+      ).json()
+    )
+
+  const guides = await call('oauth:getGuides')
+  assert.equal(guides.ok, true)
+  assert.ok(guides.data.deepseek, 'deepseek guide present')
+  assert.match(guides.data.deepseek.loginUrl, /^https:\/\//)
+  assert.ok(guides.data.deepseek.steps.length > 0)
+  assert.ok(guides.data.deepseek.tokenKey)
+
+  // The desktop build would open a Chromium window here; the web build must
+  // fail fast so the UI can show the paste-token guide instead of hanging.
+  const started = Date.now()
+  const login = await call('oauth:startInAppLogin', [
+    { providerId: 'deepseek', providerType: 'deepseek' },
+  ])
+  const elapsed = Date.now() - started
+
+  assert.equal(login.ok, true)
+  assert.equal(login.data.success, false)
+  assert.match(login.data.error, /not available/i)
+  assert.ok(elapsed < 5000, `should fail fast, took ${elapsed}ms`)
+})
+
 // ---------------------------------------------------------------------------
 // Self-starting mode: `node server/tests/api.test.mjs` without a running server
 // ---------------------------------------------------------------------------

@@ -94,6 +94,10 @@ export const IpcChannels = {
   APP_HIDE_WINDOW: 'app:hideWindow',
   APP_OPEN_EXTERNAL: 'app:openExternal',
 
+  // Web/headless: providers without a real OAuth redirect (all of them today)
+  // expose a copy-the-token guide instead of an in-app Chromium window.
+  OAUTH_GET_GUIDES: 'oauth:getGuides',
+
   PROMPTS_GET_ALL: 'prompts:getAll',
   PROMPTS_GET_BUILTIN: 'prompts:getBuiltin',
   PROMPTS_GET_CUSTOM: 'prompts:getCustom',
