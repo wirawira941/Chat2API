@@ -223,17 +223,28 @@ const main = async () => {
     const sse = await evaluate(
       cdp,
       sessionId,
-      `new Promise(async (resolve) => {
+      `new Promise((resolve) => {
          const timer = setTimeout(() => resolve({ received: false, reason: 'timeout' }), 12000)
-         const unsub = window.electronAPI.proxy.onStatusChanged((status) => {
+         try {
+           const unsub = window.electronAPI.proxy.onStatusChanged((status) => {
+             clearTimeout(timer)
+             try { unsub?.() } catch {}
+             resolve({ received: true, isRunning: status?.isRunning })
+           })
+
+           // Handshake wait, then invoke via IPC to trigger server-sent event.
+           setTimeout(() => {
+             window.electronAPI.invoke('proxy:stop')
+               .then(() => window.electronAPI.invoke('proxy:start', [8080]))
+               .catch((err) => {
+                 clearTimeout(timer)
+                 resolve({ received: false, error: 'invoke failed: ' + String(err) })
+               })
+           }, 800)
+         } catch (outerErr) {
            clearTimeout(timer)
-           unsub?.()
-           resolve({ received: true, isRunning: status?.isRunning })
-         })
-         // Allow the EventSource HTTP handshake to complete before triggering events.
-         await new Promise((r) => setTimeout(r, 600))
-         await window.electronAPI.invoke('proxy:stop')
-         await window.electronAPI.invoke('proxy:start', [8080])
+           resolve({ received: false, error: 'setup failed: ' + String(outerErr) })
+         }
        })`
     )
     check('SSE push (proxy:statusChanged)', sse.received === true, JSON.stringify(sse))
