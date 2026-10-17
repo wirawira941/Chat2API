@@ -318,7 +318,8 @@ const main = async () => {
          // so try every plausible trigger instead of guessing one label.
          if (!openedDialog()) {
            const triggers = clickable().filter((el) =>
-             /add|新增|添加|＋|\+/.test(textOf(el)) || /add/i.test(el.getAttribute('aria-label') || '')
+             /add|新增|添加|＋/.test(textOf(el)) || textOf(el).includes('+') ||
+             /add/i.test(el.getAttribute('aria-label') || '')
            )
            for (const trigger of triggers.slice(0, 6)) {
              trigger.click()

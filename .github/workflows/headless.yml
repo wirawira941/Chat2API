@@ -75,6 +75,9 @@ jobs:
       - name: Bookmarklet unit tests
         run: node server/tests/bookmarklet.test.mjs
 
+      - name: Injected-script syntax guard
+        run: node server/tests/smoke-scripts.test.mjs
+
       - name: Browser smoke test (Chromium + CDP)
         run: node server/smoke.mjs --url http://127.0.0.1:3100 --screenshot /tmp/dashboard.png
         env:
