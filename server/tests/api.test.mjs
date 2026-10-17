@@ -204,6 +204,19 @@ test('oauth guides are exposed for manual token login', async () => {
   assert.equal(login.data.success, false)
   assert.match(login.data.error, /not available/i)
   assert.ok(elapsed < 5000, `should fail fast, took ${elapsed}ms`)
+
+  // The bookmarklet is the mobile path: login happens in the real browser, the
+  // script only copies the resulting token out of that page.
+  const bookmarklet = await call('oauth:getBookmarklet', ['deepseek'])
+  assert.equal(bookmarklet.ok, true)
+  assert.ok(bookmarklet.data, 'bookmarklet returned')
+  assert.match(bookmarklet.data, /^javascript:/)
+  assert.ok(bookmarklet.data.includes('userToken'), 'targets the provider token key')
+  assert.ok(bookmarklet.data.includes('localStorage'), 'reads localStorage')
+
+  // Unknown providers must not produce a script.
+  const missing = await call('oauth:getBookmarklet', ['not-a-provider'])
+  assert.equal(missing.data, null)
 })
 
 // ---------------------------------------------------------------------------

@@ -72,6 +72,9 @@ jobs:
       - name: API smoke test
         run: node server/tests/api.test.mjs --url http://127.0.0.1:3100
 
+      - name: Bookmarklet unit tests
+        run: node server/tests/bookmarklet.test.mjs
+
       - name: Browser smoke test (Chromium + CDP)
         run: node server/smoke.mjs --url http://127.0.0.1:3100 --screenshot /tmp/dashboard.png
         env:

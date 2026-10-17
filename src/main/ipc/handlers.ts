@@ -8,7 +8,8 @@ import { ProviderChecker } from '../providers/checker'
 import { CustomProviderManager } from '../providers/custom'
 import { getBuiltinProviders, getBuiltinProvider } from '../providers/builtin'
 import { oauthManager } from '../oauth/manager'
-import { TOKEN_EXTRACTION_GUIDES, type TokenExtractionGuide } from '../oauth/guides'
+import { TOKEN_EXTRACTION_GUIDES, getGuideByProvider, type TokenExtractionGuide } from '../oauth/guides'
+import { buildBookmarkletUrl } from '../oauth/bookmarklet'
 import { ProxyServer } from '../proxy/server'
 import { proxyStatusManager } from '../proxy/status'
 import { sessionManager } from '../proxy/sessionManager'
@@ -711,6 +712,15 @@ export async function registerIpcHandlers(mainWindow: BrowserWindow | null): Pro
   // lets the user paste the token back — the same approach as 9router.
   ipcMain.handle(IpcChannels.OAUTH_GET_GUIDES, async (): Promise<Record<string, TokenExtractionGuide>> => {
     return TOKEN_EXTRACTION_GUIDES
+  })
+
+  // A bookmarklet lets the user copy the token from the provider's own page,
+  // where the login already happened in a real browser. That keeps the login
+  // fingerprint identical to a normal user, and needs no DevTools on a phone.
+  ipcMain.handle(IpcChannels.OAUTH_GET_BOOKMARKLET, async (_, providerType: string): Promise<string | null> => {
+    const guide = getGuideByProvider(providerType)
+    if (!guide) return null
+    return buildBookmarkletUrl(guide)
   })
 
   ipcMain.handle(IpcChannels.OAUTH_IN_APP_LOGIN_STATUS, async (): Promise<boolean> => {

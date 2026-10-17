@@ -98,6 +98,10 @@ export const IpcChannels = {
   // expose a copy-the-token guide instead of an in-app Chromium window.
   OAUTH_GET_GUIDES: 'oauth:getGuides',
 
+  // Returns a javascript: bookmarklet that copies the provider token out of the
+  // logged-in page, so users need no DevTools on mobile.
+  OAUTH_GET_BOOKMARKLET: 'oauth:getBookmarklet',
+
   PROMPTS_GET_ALL: 'prompts:getAll',
   PROMPTS_GET_BUILTIN: 'prompts:getBuiltin',
   PROMPTS_GET_CUSTOM: 'prompts:getCustom',

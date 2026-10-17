@@ -247,6 +247,13 @@ const oauthAPI = {
     helpUrl?: string
   }>> =>
     ipcRenderer.invoke(IpcChannels.OAUTH_GET_GUIDES),
+
+  /**
+   * A `javascript:` bookmarklet that copies this provider's token out of the
+   * logged-in page, for users who cannot open DevTools (i.e. phones).
+   */
+  getBookmarklet: (providerType: string): Promise<string | null> =>
+    ipcRenderer.invoke(IpcChannels.OAUTH_GET_BOOKMARKLET, providerType),
   
   isInAppLoginOpen: (): Promise<boolean> =>
     ipcRenderer.invoke(IpcChannels.OAUTH_IN_APP_LOGIN_STATUS),
