@@ -697,6 +697,7 @@ export function AddProviderDialog({
               {filteredProviders.map((provider) => (
                 <div
                   key={provider.id}
+                  data-testid={`builtin-provider-${provider.id}`}
                   className={cn(
                     'flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-colors',
                     selectedProvider === provider.id
@@ -990,6 +991,7 @@ export function AddProviderDialog({
               <Button
                 onClick={handleNextStep}
                 disabled={!selectedProvider}
+                data-testid="provider-next-step"
               >
                 {t('common.next')}
                 <ArrowRight className="ml-2 h-4 w-4" />

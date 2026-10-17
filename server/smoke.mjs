@@ -327,12 +327,23 @@ const main = async () => {
            addProvider.click()
            await sleep(800)
 
-           // The builtin list appears in the dialog; choose any provider card.
-           const builtin = [...document.querySelectorAll('[role="dialog"] button, [role="dialog"] [role="button"]')]
-             .find((el) => /deepseek|qwen|kimi|glm|minimax/i.test(el.textContent || ''))
+           // Step 1 lists builtin providers as clickable divs (not buttons),
+           // so select by test id instead of tag/role.
+           const builtin =
+             [...document.querySelectorAll('[data-testid^="builtin-provider-"]')].find((el) =>
+               /deepseek/i.test(el.textContent || '')
+             ) || document.querySelector('[data-testid^="builtin-provider-"]')
            results.sawBuiltin = !!builtin
            if (builtin) {
              builtin.click()
+             await sleep(400)
+           }
+
+           // Step 2 (credentials + OAuth tabs) only mounts after Next.
+           const next = $('provider-next-step')
+           results.sawNext = !!next && !next.disabled
+           if (next && !next.disabled) {
+             next.click()
              await sleep(700)
            }
          }
