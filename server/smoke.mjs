@@ -104,6 +104,10 @@ const main = async () => {
   }
 
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chat2api-smoke-'))
+  // A fixed port plus /json/version discovery is far more reliable than
+  // scraping the DevTools URL from stderr, which Chromium only prints once and
+  // in a format that has changed between versions.
+  const debugPort = Number(process.env.CHAT2API_DEBUG_PORT ?? 9333)
   const chrome = spawn(
     CHROME,
     [
@@ -111,7 +115,7 @@ const main = async () => {
       '--no-sandbox',
       '--disable-gpu',
       '--disable-dev-shm-usage',
-      '--remote-debugging-port=0',
+      `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${userDataDir}`,
       '--window-size=1400,900',
       'about:blank',
@@ -122,15 +126,22 @@ const main = async () => {
   let stderr = ''
   chrome.stderr.on('data', (d) => (stderr += d.toString()))
 
-  // Chromium prints the DevTools URL on stderr once the endpoint is live.
   const wsEndpoint = await waitFor(
     async () => {
-      const match = stderr.match(/ws:\/\/[^\s]+/)
-      return match ? match[0] : null
+      try {
+        const response = await fetch(`http://127.0.0.1:${debugPort}/json/version`)
+        if (!response.ok) return null
+        const info = await response.json()
+        return info.webSocketDebuggerUrl ?? null
+      } catch {
+        return null
+      }
     },
-    20_000,
+    30_000,
     'chromium devtools endpoint'
-  )
+  ).catch((error) => {
+    throw new Error(`${error.message}\nchromium stderr:\n${stderr.slice(-2000)}`)
+  })
 
   const cdp = await Cdp.connect(wsEndpoint)
   const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' })
