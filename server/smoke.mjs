@@ -219,17 +219,22 @@ const main = async () => {
       `${providers?.length ?? 0} providers`
     )
 
-    // 5. SSE wiring: a proxy start should push proxy:statusChanged to the page.
+    // 5. SSE wiring: toggle proxy and verify proxy:statusChanged reaches the page.
     const sse = await evaluate(
       cdp,
       sessionId,
       `new Promise((resolve) => {
-         const timer = setTimeout(() => resolve({ received: false }), 8000)
-         window.electronAPI.proxy.onStatusChanged((status) => {
+         const timer = setTimeout(() => resolve({ received: false, reason: 'timeout' }), 10000)
+         const unsub = window.electronAPI.proxy.onStatusChanged((status) => {
            clearTimeout(timer)
+           unsub?.()
            resolve({ received: true, isRunning: status?.isRunning })
          })
-         window.electronAPI.invoke('proxy:start', [8080])
+         // Stop then start so a status change is guaranteed to fire regardless
+         // of whether auto-start was enabled.
+         window.electronAPI.invoke('proxy:stop').then(() => {
+           window.electronAPI.invoke('proxy:start', [8080])
+         })
        })`
     )
     check('SSE push (proxy:statusChanged)', sse.received === true, JSON.stringify(sse))
@@ -251,8 +256,14 @@ const main = async () => {
     }
   } finally {
     clearInterval(poll)
-    chrome.kill('SIGKILL')
-    fs.rmSync(userDataDir, { recursive: true, force: true })
+    try {
+      chrome.kill('SIGKILL')
+      // Let the OS release file handles before removing the temp profile.
+      await new Promise((r) => setTimeout(r, 1000))
+      fs.rmSync(userDataDir, { recursive: true, force: true })
+    } catch (cleanupError) {
+      console.warn('cleanup error (ignored):', cleanupError?.message || cleanupError)
+    }
   }
 
   if (failures.length) {
