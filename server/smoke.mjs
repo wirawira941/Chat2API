@@ -303,36 +303,71 @@ const main = async () => {
       sessionId,
       `(async () => {
          const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-         const byText = (text) =>
-           [...document.querySelectorAll('button, a, [role="tab"]')].find((el) =>
-             (el.textContent || '').toLowerCase().includes(text)
-           )
+         const all = (sel) => [...document.querySelectorAll(sel)]
+         const clickable = () => all('button, a, [role="tab"]')
+         const textOf = (el) => (el.textContent || '').toLowerCase()
 
-         // Providers page -> add account -> OAuth tab -> click the login button.
          location.hash = '#/providers'
-         await sleep(900)
+         await sleep(1200)
 
-         const addBtn =
-           byText('add account') || byText('添加账户') ||
-           [...document.querySelectorAll('button')].find((b) => /add/i.test(b.textContent || ''))
-         if (!addBtn) return { reached: false, reason: 'no add-account button' }
-         addBtn.click()
-         await sleep(700)
+         const openedDialog = () =>
+           !!document.querySelector('[role="dialog"], [data-state="open"]')
 
-         const oauthTab = [...document.querySelectorAll('[role="tab"]')].find((t) =>
-           /oauth/i.test(t.textContent || '')
+         // Step 1: reach a dialog. The Providers page nests this a few ways
+         // (provider list -> account list -> add), and labels are translated,
+         // so try every plausible trigger instead of guessing one label.
+         if (!openedDialog()) {
+           const triggers = clickable().filter((el) =>
+             /add|新增|添加|＋|\+/.test(textOf(el)) || /add/i.test(el.getAttribute('aria-label') || '')
+           )
+           for (const trigger of triggers.slice(0, 6)) {
+             trigger.click()
+             await sleep(600)
+             if (openedDialog()) break
+           }
+         }
+
+         // Provider cards may need selecting first.
+         if (!openedDialog()) {
+           for (const card of all('button, [role="button"], .cursor-pointer').slice(0, 20)) {
+             card.click()
+             await sleep(500)
+             if (openedDialog()) break
+             location.hash = '#/providers'
+             await sleep(300)
+           }
+         }
+
+         if (!openedDialog()) {
+           return {
+             reached: false,
+             reason: 'no dialog opened',
+             buttons: clickable().map(textOf).filter(Boolean).slice(0, 25),
+           }
+         }
+
+         // Step 2: switch to the OAuth tab if the dialog has one.
+         const oauthTab = clickable().find((el) => /oauth/i.test(textOf(el)))
+         if (oauthTab) {
+           oauthTab.click()
+           await sleep(500)
+         }
+
+         // Step 3: click the login trigger inside the dialog.
+         const dialog = document.querySelector('[role="dialog"], [data-state="open"]') || document
+         const loginBtn = [...dialog.querySelectorAll('button')].find((b) =>
+           /oauth|login|登录|open/i.test(textOf(b))
          )
-         if (!oauthTab) return { reached: false, reason: 'no oauth tab' }
-         oauthTab.click()
-         await sleep(400)
+         if (!loginBtn) {
+           return {
+             reached: false,
+             reason: 'no login button in dialog',
+             buttons: [...dialog.querySelectorAll('button')].map(textOf).slice(0, 20),
+           }
+         }
+         loginBtn.click()
 
-         const startBtn = [...document.querySelectorAll('button')].find((b) =>
-           /open oauth|oauth login|login|登录/i.test(b.textContent || '')
-         )
-         if (!startBtn) return { reached: false, reason: 'no login button' }
-         startBtn.click()
-
-         // Wait for the fallback panel rather than a dead-end error.
+         // Step 4: the guide panel (not the raw error) must appear.
          for (let i = 0; i < 40; i++) {
            await sleep(250)
            const body = document.body.innerText
