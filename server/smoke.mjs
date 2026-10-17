@@ -219,22 +219,21 @@ const main = async () => {
       `${providers?.length ?? 0} providers`
     )
 
-    // 5. SSE wiring: toggle proxy and verify proxy:statusChanged reaches the page.
+    // 5. SSE wiring: ensure stream is connected, then toggle proxy status.
     const sse = await evaluate(
       cdp,
       sessionId,
-      `new Promise((resolve) => {
-         const timer = setTimeout(() => resolve({ received: false, reason: 'timeout' }), 10000)
+      `new Promise(async (resolve) => {
+         const timer = setTimeout(() => resolve({ received: false, reason: 'timeout' }), 12000)
          const unsub = window.electronAPI.proxy.onStatusChanged((status) => {
            clearTimeout(timer)
            unsub?.()
            resolve({ received: true, isRunning: status?.isRunning })
          })
-         // Stop then start so a status change is guaranteed to fire regardless
-         // of whether auto-start was enabled.
-         window.electronAPI.invoke('proxy:stop').then(() => {
-           window.electronAPI.invoke('proxy:start', [8080])
-         })
+         // Allow the EventSource HTTP handshake to complete before triggering events.
+         await new Promise((r) => setTimeout(r, 600))
+         await window.electronAPI.invoke('proxy:stop')
+         await window.electronAPI.invoke('proxy:start', [8080])
        })`
     )
     check('SSE push (proxy:statusChanged)', sse.received === true, JSON.stringify(sse))
