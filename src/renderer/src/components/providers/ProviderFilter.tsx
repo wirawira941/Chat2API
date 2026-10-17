@@ -165,7 +165,7 @@ export function ProviderFilter({
             <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
           </Button>
 
-          <Button onClick={onAddProvider}>
+          <Button onClick={onAddProvider} data-testid="add-provider-button">
             <Plus className="mr-2 h-4 w-4" />
             {t('providers.addProvider')}
           </Button>

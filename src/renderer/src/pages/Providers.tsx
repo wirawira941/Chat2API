@@ -26,7 +26,8 @@ import type {
 } from '@/types/electron'
 import { FilterType, StatusFilter } from '@/components/providers/ProviderFilter'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Server, ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Server, ArrowLeft, Plus } from 'lucide-react'
 
 type ViewMode = 'providers' | 'accounts' | 'account-detail'
 
@@ -685,6 +686,14 @@ export function Providers() {
               ? t('providers.tryAdjustingFilters')
               : t('providers.clickToAddProvider')}
           </p>
+          <Button
+            className="mt-4"
+            onClick={() => setShowAddProviderDialog(true)}
+            data-testid="add-provider-empty-button"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {t('providers.addProvider')}
+          </Button>
         </div>
       ) : (
         <ScrollArea className="h-[calc(100vh-280px)]">

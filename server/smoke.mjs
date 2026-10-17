@@ -309,10 +309,18 @@ const main = async () => {
          const results = {}
 
          location.hash = '#/providers'
-         await sleep(1400)
+         await sleep(400)
+
+         // Wait for the page to actually render instead of assuming a fixed
+         // delay; a cold SPA load can take well over a second.
+         for (let i = 0; i < 40 && !$('add-provider-button') && !$('add-provider-empty-button'); i++) {
+           await sleep(250)
+         }
 
          // Providers page -> "Add Provider" -> pick a builtin -> OAuth tab.
-         const addProvider = $('add-provider-button')
+         // An empty install shows the empty-state button instead of the toolbar
+         // one, so accept either.
+         const addProvider = $('add-provider-button') || $('add-provider-empty-button')
          results.sawAddProvider = !!addProvider
 
          if (addProvider) {
@@ -329,10 +337,33 @@ const main = async () => {
            }
          }
 
+         // Click the OAuth tab first: the login trigger only exists there.
+         const oauthTab = [...document.querySelectorAll('[role="tab"]')].find((el) =>
+           /oauth/i.test(el.textContent || '')
+         )
+         results.sawOauthTab = !!oauthTab
+         if (oauthTab) {
+           oauthTab.click()
+           // Radix mounts tab content asynchronously.
+           for (let i = 0; i < 20 && !$('oauth-login-button'); i++) {
+             await sleep(200)
+           }
+         }
+
          // Click the OAuth trigger if present; in the web build this is what
          // must degrade into the guide panel.
          const oauthBtn = $('oauth-login-button')
          results.sawOauthButton = !!oauthBtn
+         if (!oauthBtn && !results.sawAddProvider) {
+           return {
+             reached: false,
+             reason: 'providers page never rendered',
+             hash: location.hash,
+             testIds: [...document.querySelectorAll('[data-testid]')].map((e) => e.getAttribute('data-testid')).slice(0, 20),
+             text: document.body.innerText.slice(0, 200),
+             ...results,
+           }
+         }
          if (oauthBtn) {
            oauthBtn.click()
          } else {
