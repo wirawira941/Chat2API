@@ -306,6 +306,19 @@ const main = async () => {
       `(async () => {
          const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
          const $ = (id) => document.querySelector('[data-testid="' + id + '"]')
+         // Radix tabs activate on pointerdown/mousedown, not on a bare click()
+         // (which is all a script-dispatched click gives you). Fire the full
+         // sequence so the tab actually switches.
+         const realClick = (el) => {
+           if (!el) return false
+           const opts = { bubbles: true, cancelable: true, button: 0, buttons: 1 }
+           try { el.dispatchEvent(new PointerEvent('pointerdown', { ...opts, pointerId: 1, isPrimary: true })) } catch {}
+           el.dispatchEvent(new MouseEvent('mousedown', opts))
+           try { el.dispatchEvent(new PointerEvent('pointerup', { ...opts, buttons: 0, pointerId: 1, isPrimary: true })) } catch {}
+           el.dispatchEvent(new MouseEvent('mouseup', { ...opts, buttons: 0 }))
+           el.click()
+           return true
+         }
          const results = {}
 
          location.hash = '#/providers'
@@ -354,10 +367,11 @@ const main = async () => {
          )
          results.sawOauthTab = !!oauthTab
          if (oauthTab) {
-           oauthTab.click()
+           realClick(oauthTab)
            // Radix mounts tab content asynchronously.
-           for (let i = 0; i < 20 && !$('oauth-login-button'); i++) {
+           for (let i = 0; i < 25 && !$('oauth-login-button'); i++) {
              await sleep(200)
+             if (!$('oauth-login-button') && i === 8) realClick(oauthTab)
            }
          }
 
