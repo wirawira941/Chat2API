@@ -295,6 +295,65 @@ const main = async () => {
       oauthFallback.error ?? ''
     )
 
+    // 8. The guide panel must actually reach the DOM. Both dialogs call
+    // startInAppLogin; a fix in only one of them is what made the UI show a
+    // bare "not available" error, so drive the real UI here.
+    const guidePanel = await evaluate(
+      cdp,
+      sessionId,
+      `(async () => {
+         const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+         const byText = (text) =>
+           [...document.querySelectorAll('button, a, [role="tab"]')].find((el) =>
+             (el.textContent || '').toLowerCase().includes(text)
+           )
+
+         // Providers page -> add account -> OAuth tab -> click the login button.
+         location.hash = '#/providers'
+         await sleep(900)
+
+         const addBtn =
+           byText('add account') || byText('添加账户') ||
+           [...document.querySelectorAll('button')].find((b) => /add/i.test(b.textContent || ''))
+         if (!addBtn) return { reached: false, reason: 'no add-account button' }
+         addBtn.click()
+         await sleep(700)
+
+         const oauthTab = [...document.querySelectorAll('[role="tab"]')].find((t) =>
+           /oauth/i.test(t.textContent || '')
+         )
+         if (!oauthTab) return { reached: false, reason: 'no oauth tab' }
+         oauthTab.click()
+         await sleep(400)
+
+         const startBtn = [...document.querySelectorAll('button')].find((b) =>
+           /open oauth|oauth login|login|登录/i.test(b.textContent || '')
+         )
+         if (!startBtn) return { reached: false, reason: 'no login button' }
+         startBtn.click()
+
+         // Wait for the fallback panel rather than a dead-end error.
+         for (let i = 0; i < 40; i++) {
+           await sleep(250)
+           const body = document.body.innerText
+           if (/bookmarklet|Login on the provider/i.test(body)) {
+             return {
+               reached: true,
+               hasBookmarklet: /bookmarklet/i.test(body),
+               hasGuideSteps: /Field:/i.test(body),
+               showsRawError: /In-app login window is not available/i.test(body),
+             }
+           }
+         }
+         return { reached: false, reason: 'guide panel never appeared', body: document.body.innerText.slice(0, 300) }
+       })()`
+    )
+    check('guide panel renders after OAuth click', guidePanel.reached === true, JSON.stringify(guidePanel).slice(0, 220))
+    if (guidePanel.reached) {
+      check('guide panel shows bookmarklet', guidePanel.hasBookmarklet === true)
+      check('guide panel replaces raw error', guidePanel.showsRawError === false)
+    }
+
     if (consoleErrors.length) {
       check('no page console errors', false, consoleErrors.slice(0, 3).join(' | '))
     } else {

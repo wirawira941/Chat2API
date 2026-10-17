@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Check, Plus, ArrowRight, Loader2, ExternalLink, AlertCircle, CheckCircle2, ArrowLeft, Info, Eye, EyeOff, Copy } from 'lucide-react'
+import { Check, Plus, ArrowRight, Loader2, ExternalLink, AlertCircle, CheckCircle2, ArrowLeft, Info, Eye, EyeOff, Copy, Bookmark } from 'lucide-react'
 import type { BuiltinProviderConfig, ProviderVendor } from '@/types/electron'
 import { cn } from '@/lib/utils'
 import deepseekIcon from '@/assets/providers/deepseek.svg'
@@ -176,6 +176,38 @@ export function AddProviderDialog({
     }
   }>({})
   const [oauthStatus, setOAuthStatus] = useState<string>('')
+  // Filled in when the in-app login window is unavailable (web build): the UI
+  // then shows the provider's login URL, token-copy steps and the bookmarklet.
+  const [webLoginGuide, setWebLoginGuide] = useState<{
+    loginUrl: string
+    steps: string[]
+    tokenKey: string
+    tokenLabel: string
+    storageType: 'localStorage' | 'cookie' | 'other'
+    placeholder?: string
+    helpUrl?: string
+  } | null>(null)
+  const [bookmarklet, setBookmarklet] = useState<string | null>(null)
+  const [bookmarkletCopied, setBookmarkletCopied] = useState(false)
+
+  useEffect(() => {
+    if (!webLoginGuide || !selectedProviderData?.id) {
+      setBookmarklet(null)
+      return
+    }
+    let cancelled = false
+    window.electronAPI?.oauth
+      .getBookmarklet(selectedProviderData.id)
+      .then((value) => {
+        if (!cancelled) setBookmarklet(value)
+      })
+      .catch(() => {
+        if (!cancelled) setBookmarklet(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [webLoginGuide, selectedProviderData?.id])
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({})
   const [copiedFields, setCopiedFields] = useState<Record<string, boolean>>({})
 
@@ -369,6 +401,26 @@ export function AddProviderDialog({
       } else {
         const errorMsg = result?.error || ''
         console.error('[AddProviderDialog] OAuth failed:', errorMsg)
+
+        // The web build has no in-app Chromium window to scrape tokens from, so
+        // the main process reports it as unavailable. Switch to the manual flow
+        // (open the provider site, copy the token with the bookmarklet) instead
+        // of surfacing a dead-end error message.
+        const noWindow =
+          !errorMsg ||
+          /login window|window was closed|not available|unsupported/i.test(errorMsg)
+
+        if (noWindow) {
+          const guides = await window.electronAPI?.oauth.getGuides?.()
+          const guide = guides?.[selectedProviderData.id]
+          if (guide) {
+            setWebLoginGuide(guide)
+            setActiveTab('manual')
+            setOAuthStatus('')
+            return
+          }
+        }
+
         const translatedError = errorMsg === 'Login window was closed' 
           ? t('providers.loginWindowClosed')
           : errorMsg === 'A login window is already open'
@@ -775,6 +827,74 @@ export function AddProviderDialog({
             </TabsList>
 
             <TabsContent value="manual" className="mt-4">
+              {webLoginGuide && (
+                <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                  <p className="mb-2 font-medium">
+                    Login on the provider's site, then import the {webLoginGuide.tokenLabel}.
+                  </p>
+                  <ol className="mb-3 list-decimal space-y-1 pl-5 text-muted-foreground">
+                    {webLoginGuide.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() =>
+                        window.electronAPI?.invoke('app:openExternal', webLoginGuide.loginUrl)
+                      }
+                    >
+                      <ExternalLink className="mr-1 h-3.5 w-3.5" />
+                      Open {new URL(webLoginGuide.loginUrl).hostname}
+                    </Button>
+
+                    {bookmarklet && (
+                      <>
+                        <a
+                          href={bookmarklet}
+                          draggable
+                          onClick={(e) => e.preventDefault()}
+                          className="inline-flex cursor-move items-center rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                          title="Drag this to your bookmarks bar, or save it as a bookmark"
+                        >
+                          <Bookmark className="mr-1 h-3.5 w-3.5" />
+                          Copy {webLoginGuide.tokenLabel} (bookmarklet)
+                        </a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(bookmarklet)
+                            setBookmarkletCopied(true)
+                            setTimeout(() => setBookmarkletCopied(false), 2000)
+                          }}
+                        >
+                          {bookmarkletCopied ? (
+                            <><Check className="mr-1 h-3.5 w-3.5" />Copied</>
+                          ) : (
+                            <><Copy className="mr-1 h-3.5 w-3.5" />Copy code</>
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {bookmarklet && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Create a bookmark in your phone browser whose URL is the copied code, open it
+                      while logged in on {new URL(webLoginGuide.loginUrl).hostname}, and the token is
+                      copied for you.
+                    </p>
+                  )}
+
+                  <span className="mt-2 block text-xs text-muted-foreground">
+                    Field: <code className="rounded bg-muted px-1">{webLoginGuide.tokenKey}</code>
+                  </span>
+                </div>
+              )}
               {renderCredentialFields()}
             </TabsContent>
 
