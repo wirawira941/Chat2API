@@ -14,9 +14,10 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Check, Plus, ArrowRight, Loader2, ExternalLink, AlertCircle, CheckCircle2, ArrowLeft, Info, Eye, EyeOff, Copy, Bookmark } from 'lucide-react'
+import { Check, Plus, ArrowRight, Loader2, ExternalLink, AlertCircle, CheckCircle2, ArrowLeft, Info, Eye, EyeOff, Copy } from 'lucide-react'
 import type { BuiltinProviderConfig, ProviderVendor } from '@/types/electron'
 import { cn } from '@/lib/utils'
+import { TokenImportHelp } from './TokenImportHelp'
 import deepseekIcon from '@/assets/providers/deepseek.svg'
 import glmIcon from '@/assets/providers/glm.svg'
 import kimiIcon from '@/assets/providers/kimi.svg'
@@ -188,7 +189,6 @@ export function AddProviderDialog({
     helpUrl?: string
   } | null>(null)
   const [bookmarklet, setBookmarklet] = useState<string | null>(null)
-  const [bookmarkletCopied, setBookmarkletCopied] = useState(false)
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({})
   const [copiedFields, setCopiedFields] = useState<Record<string, boolean>>({})
 
@@ -829,75 +829,13 @@ export function AddProviderDialog({
 
             <TabsContent value="manual" className="mt-4">
               {webLoginGuide && (
-                <div
-                  data-testid="web-login-guide"
-                  className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"
-                >
-                  <p className="mb-2 font-medium">
-                    Login on the provider's site, then import the {webLoginGuide.tokenLabel}.
-                  </p>
-                  <ol className="mb-3 list-decimal space-y-1 pl-5 text-muted-foreground">
-                    {webLoginGuide.steps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ol>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() =>
-                        window.electronAPI?.invoke('app:openExternal', webLoginGuide.loginUrl)
-                      }
-                    >
-                      <ExternalLink className="mr-1 h-3.5 w-3.5" />
-                      Open {new URL(webLoginGuide.loginUrl).hostname}
-                    </Button>
-
-                    {bookmarklet && (
-                      <>
-                        <a
-                          href={bookmarklet}
-                          draggable
-                          onClick={(e) => e.preventDefault()}
-                          className="inline-flex cursor-move items-center rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
-                          title="Drag this to your bookmarks bar, or save it as a bookmark"
-                        >
-                          <Bookmark className="mr-1 h-3.5 w-3.5" />
-                          Copy {webLoginGuide.tokenLabel} (bookmarklet)
-                        </a>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            await navigator.clipboard?.writeText(bookmarklet)
-                            setBookmarkletCopied(true)
-                            setTimeout(() => setBookmarkletCopied(false), 2000)
-                          }}
-                        >
-                          {bookmarkletCopied ? (
-                            <><Check className="mr-1 h-3.5 w-3.5" />Copied</>
-                          ) : (
-                            <><Copy className="mr-1 h-3.5 w-3.5" />Copy code</>
-                          )}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {bookmarklet && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Create a bookmark in your phone browser whose URL is the copied code, open it
-                      while logged in on {new URL(webLoginGuide.loginUrl).hostname}, and the token is
-                      copied for you.
-                    </p>
-                  )}
-
-                  <span className="mt-2 block text-xs text-muted-foreground">
-                    Field: <code className="rounded bg-muted px-1">{webLoginGuide.tokenKey}</code>
-                  </span>
-                </div>
+                <TokenImportHelp
+                  guide={webLoginGuide}
+                  bookmarklet={bookmarklet}
+                  onOpenSite={() =>
+                    window.electronAPI?.invoke('app:openExternal', webLoginGuide.loginUrl)
+                  }
+                />
               )}
               {renderCredentialFields()}
             </TabsContent>
