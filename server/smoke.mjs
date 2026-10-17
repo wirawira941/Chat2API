@@ -219,31 +219,46 @@ const main = async () => {
       `${providers?.length ?? 0} providers`
     )
 
-    // 5. SSE wiring: ensure stream is connected, then toggle proxy status.
+    // 5. SSE wiring: observe EventSource state and proxy:statusChanged.
     const sse = await evaluate(
       cdp,
       sessionId,
       `new Promise((resolve) => {
-         const timer = setTimeout(() => resolve({ received: false, reason: 'timeout' }), 12000)
-         try {
-           const unsub = window.electronAPI.proxy.onStatusChanged((status) => {
-             clearTimeout(timer)
-             try { unsub?.() } catch {}
-             resolve({ received: true, isRunning: status?.isRunning })
+         const timer = setTimeout(() => {
+           resolve({
+             received: false,
+             reason: 'timeout',
+             readyState: window._esReadyState,
+             eventsSeen: window._eventsSeen || [],
            })
+         }, 10000)
 
-           // Handshake wait, then invoke via IPC to trigger server-sent event.
-           setTimeout(() => {
+         try {
+           window._eventsSeen = []
+           const source = new EventSource('/api/events')
+           source.onopen = () => {
+             window._esReadyState = 'open'
+             // Trigger status change after confirmed connection
              window.electronAPI.invoke('proxy:stop')
                .then(() => window.electronAPI.invoke('proxy:start', [8080]))
-               .catch((err) => {
+           }
+           source.onerror = (e) => {
+             window._esReadyState = 'error'
+           }
+           source.onmessage = (msg) => {
+             try {
+               const parsed = JSON.parse(msg.data)
+               window._eventsSeen.push(parsed.channel)
+               if (parsed.channel === 'proxy:statusChanged') {
                  clearTimeout(timer)
-                 resolve({ received: false, error: 'invoke failed: ' + String(err) })
-               })
-           }, 800)
+                 source.close()
+                 resolve({ received: true, isRunning: parsed.args?.[0]?.isRunning })
+               }
+             } catch {}
+           }
          } catch (outerErr) {
            clearTimeout(timer)
-           resolve({ received: false, error: 'setup failed: ' + String(outerErr) })
+           resolve({ received: false, error: String(outerErr) })
          }
        })`
     )
