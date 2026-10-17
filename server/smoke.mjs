@@ -85,10 +85,16 @@ async function evaluate(cdp, sessionId, expression) {
   return result.result.value
 }
 
+/**
+ * Polls `fn` until it returns something truthy and returns that value.
+ * Returning the value (not just `true`) matters: callers use it to pick up the
+ * discovered DevTools URL.
+ */
 const waitFor = async (fn, timeoutMs, label) => {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    if (await fn()) return true
+    const value = await fn()
+    if (value) return value
     await new Promise((r) => setTimeout(r, 250))
   }
   throw new Error(`timed out waiting for ${label}`)
