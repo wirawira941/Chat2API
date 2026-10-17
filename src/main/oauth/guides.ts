@@ -1,7 +1,10 @@
 export interface TokenExtractionGuide {
   loginUrl: string
   steps: string[]
+  /** Storage key the bookmarklet reads (localStorage key or cookie name). */
   tokenKey: string
+  /** Form field the pasted value belongs in, when it differs from tokenKey. */
+  credentialField?: string
   tokenLabel: string
   storageType: 'localStorage' | 'cookie' | 'other'
   placeholder?: string
@@ -50,18 +53,6 @@ export const TOKEN_EXTRACTION_GUIDES: Record<string, TokenExtractionGuide> = {
     storageType: 'localStorage',
     placeholder: 'Paste the JWT token obtained from chat.qwen.ai',
   },
-  qwenAi: {
-    loginUrl: 'https://chat.qwen.ai',
-    steps: [
-      'Open chat.qwen.ai and log in normally in your browser',
-      'Copy the token with the bookmarklet below (phone steps are listed under it)',
-      'Paste the token into the field at the bottom of this panel',
-    ],
-    tokenKey: 'token',
-    tokenLabel: 'Token',
-    storageType: 'localStorage',
-    placeholder: 'Paste the JWT token obtained from chat.qwen.ai',
-  },
   glm: {
     loginUrl: 'https://chatglm.cn',
     steps: [
@@ -69,7 +60,11 @@ export const TOKEN_EXTRACTION_GUIDES: Record<string, TokenExtractionGuide> = {
       'Copy the refresh token with the bookmarklet below (phone steps are listed under it)',
       'Paste it into the field at the bottom of this panel — exchanged server-side for access token',
     ],
+    // The page stores it as chatglm_refresh_token, but the provider's credential
+    // field is named refresh_token. Showing one and filling the other is a
+    // silent failure, so the panel labels them separately.
     tokenKey: 'chatglm_refresh_token',
+    credentialField: 'refresh_token',
     tokenLabel: 'Refresh Token',
     storageType: 'localStorage',
     placeholder: 'Paste the refresh_token obtained from chatglm.cn',

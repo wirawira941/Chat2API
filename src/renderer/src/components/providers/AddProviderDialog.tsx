@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Check, Plus, ArrowRight, Loader2, ExternalLink, AlertCircle, CheckCircle2, ArrowLeft, Info, Eye, EyeOff, Copy } from 'lucide-react'
 import type { BuiltinProviderConfig, ProviderVendor } from '@/types/electron'
 import { cn } from '@/lib/utils'
-import { TokenImportHelp } from './TokenImportHelp'
+import { TokenImportHelp, type TokenImportGuide } from './TokenImportHelp'
 import deepseekIcon from '@/assets/providers/deepseek.svg'
 import glmIcon from '@/assets/providers/glm.svg'
 import kimiIcon from '@/assets/providers/kimi.svg'
@@ -179,15 +179,7 @@ export function AddProviderDialog({
   const [oauthStatus, setOAuthStatus] = useState<string>('')
   // Filled in when the in-app login window is unavailable (web build): the UI
   // then shows the provider's login URL, token-copy steps and the bookmarklet.
-  const [webLoginGuide, setWebLoginGuide] = useState<{
-    loginUrl: string
-    steps: string[]
-    tokenKey: string
-    tokenLabel: string
-    storageType: 'localStorage' | 'cookie' | 'other'
-    placeholder?: string
-    helpUrl?: string
-  } | null>(null)
+  const [webLoginGuide, setWebLoginGuide] = useState<TokenImportGuide | null>(null)
   const [bookmarklet, setBookmarklet] = useState<string | null>(null)
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({})
   const [copiedFields, setCopiedFields] = useState<Record<string, boolean>>({})

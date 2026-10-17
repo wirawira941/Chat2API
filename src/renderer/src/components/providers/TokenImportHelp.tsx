@@ -8,6 +8,8 @@ export interface TokenImportGuide {
   loginUrl: string
   steps: string[]
   tokenKey: string
+  /** Form field the pasted value belongs in, when it differs from tokenKey. */
+  credentialField?: string
   tokenLabel: string
   storageType: 'localStorage' | 'cookie' | 'other'
   placeholder?: string
@@ -165,7 +167,13 @@ export function TokenImportHelp({ guide, bookmarklet, onOpenSite }: TokenImportH
       )}
 
       <span className="mt-2 block text-xs text-muted-foreground">
-        Field: <code className="rounded bg-muted px-1">{guide.tokenKey}</code>
+        Field:{' '}
+        <code className="rounded bg-muted px-1">{guide.credentialField ?? guide.tokenKey}</code>
+        {guide.credentialField && guide.credentialField !== guide.tokenKey && (
+          <span className="ml-2">
+            (read from <code className="rounded bg-muted px-1">{guide.tokenKey}</code>)
+          </span>
+        )}
       </span>
     </div>
   )

@@ -30,7 +30,7 @@ import {
   Check
 } from 'lucide-react'
 import type { Provider, CredentialField, Account, BuiltinProviderConfig, ProviderVendor } from '@/types/electron'
-import { TokenImportHelp } from './TokenImportHelp'
+import { TokenImportHelp, type TokenImportGuide } from './TokenImportHelp'
 
 /**
  * Map OAuth credentials to provider credential field names
@@ -168,15 +168,7 @@ export function AddAccountDialog({
   const [oauthStatus, setOAuthStatus] = useState<string>('')
   // Populated when the in-app login window is unavailable (web build): the UI
   // then shows the provider's login URL and token copy steps instead.
-  const [webLoginGuide, setWebLoginGuide] = useState<{
-    loginUrl: string
-    steps: string[]
-    tokenKey: string
-    tokenLabel: string
-    storageType: 'localStorage' | 'cookie' | 'other'
-    placeholder?: string
-    helpUrl?: string
-  } | null>(null)
+  const [webLoginGuide, setWebLoginGuide] = useState<TokenImportGuide | null>(null)
   const [bookmarklet, setBookmarklet] = useState<string | null>(null)
 
   // The guide panel is the mobile-friendly import path, so fetch the matching
