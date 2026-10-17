@@ -18,8 +18,11 @@
 set -u
 
 HOME_DIR=${HOME:-/data/data/com.termux/files/home}
-APP_DIR=$(cd "$(dirname "$0")" && pwd)
-ENTRY="$APP_DIR/main.cjs"
+APP_DIR=$(cd "$(dirname "$0")/.." && pwd)
+ENTRY="$APP_DIR/headless-dist/main.cjs"
+if [ ! -f "$ENTRY" ] && [ -f "$APP_DIR/main.cjs" ]; then
+  ENTRY="$APP_DIR/main.cjs"
+fi
 
 # Data (config, accounts, logs) — override with CHAT2API_USER_DATA.
 export CHAT2API_HOME="${CHAT2API_HOME:-$APP_DIR}"
