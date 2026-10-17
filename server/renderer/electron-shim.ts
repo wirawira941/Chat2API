@@ -92,12 +92,19 @@ async function invoke(channel: string, ...args: unknown[]): Promise<any> {
   if (channel === 'app:openExternal') {
     const url = String(args[0] ?? '')
     if (url) {
-      const opened = window.open(url, '_blank', 'noopener,noreferrer')
-      if (!opened) {
-        // Popup blocked: fall back to same-tab navigation so the user still
-        // reaches the login page instead of seeing nothing happen.
-        window.location.href = url
-      }
+      // Direct window.open() can be blocked when called outside of a direct
+      // user event, and navigating window.location.href would destroy the
+      // running dashboard session. A synthetic <a> click with target=_blank
+      // cleanly opens a new tab in modern mobile/desktop browsers without
+      // losing the dashboard tab.
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.target = '_blank'
+      anchor.rel = 'noopener noreferrer'
+      anchor.style.display = 'none'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
     }
     return undefined
   }

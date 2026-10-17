@@ -295,93 +295,68 @@ const main = async () => {
       oauthFallback.error ?? ''
     )
 
-    // 8. The guide panel must actually reach the DOM. Both dialogs call
-    // startInAppLogin; a fix in only one of them is what made the UI show a
-    // bare "not available" error, so drive the real UI here.
+    // 8. The guide panel must actually reach the DOM. Both provider dialogs
+    // call startInAppLogin, and a fix in only one of them is what made the UI
+    // show a bare "not available" error. Driven via stable test ids so a
+    // translation change or a stray clickable cannot break the test (a random
+    // click once navigated the page away mid-run).
     const guidePanel = await evaluate(
       cdp,
       sessionId,
       `(async () => {
          const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
-         const all = (sel) => [...document.querySelectorAll(sel)]
-         const clickable = () => all('button, a, [role="tab"]')
-         const textOf = (el) => (el.textContent || '').toLowerCase()
+         const $ = (id) => document.querySelector('[data-testid="' + id + '"]')
+         const results = {}
 
          location.hash = '#/providers'
-         await sleep(1200)
+         await sleep(1400)
 
-         const openedDialog = () =>
-           !!document.querySelector('[role="dialog"], [data-state="open"]')
+         // Providers page -> "Add Provider" -> pick a builtin -> OAuth tab.
+         const addProvider = $('add-provider-button')
+         results.sawAddProvider = !!addProvider
 
-         // Step 1: reach a dialog. The Providers page nests this a few ways
-         // (provider list -> account list -> add), and labels are translated,
-         // so try every plausible trigger instead of guessing one label.
-         if (!openedDialog()) {
-           const triggers = clickable().filter((el) =>
-             /add|新增|添加|＋/.test(textOf(el)) || textOf(el).includes('+') ||
-             /add/i.test(el.getAttribute('aria-label') || '')
-           )
-           for (const trigger of triggers.slice(0, 6)) {
-             trigger.click()
-             await sleep(600)
-             if (openedDialog()) break
+         if (addProvider) {
+           addProvider.click()
+           await sleep(800)
+
+           // The builtin list appears in the dialog; choose any provider card.
+           const builtin = [...document.querySelectorAll('[role="dialog"] button, [role="dialog"] [role="button"]')]
+             .find((el) => /deepseek|qwen|kimi|glm|minimax/i.test(el.textContent || ''))
+           results.sawBuiltin = !!builtin
+           if (builtin) {
+             builtin.click()
+             await sleep(700)
            }
          }
 
-         // Provider cards may need selecting first.
-         if (!openedDialog()) {
-           for (const card of all('button, [role="button"], .cursor-pointer').slice(0, 20)) {
-             card.click()
-             await sleep(500)
-             if (openedDialog()) break
-             location.hash = '#/providers'
-             await sleep(300)
-           }
+         // Click the OAuth trigger if present; in the web build this is what
+         // must degrade into the guide panel.
+         const oauthBtn = $('oauth-login-button')
+         results.sawOauthButton = !!oauthBtn
+         if (oauthBtn) {
+           oauthBtn.click()
+         } else {
+           return { reached: false, reason: 'no oauth button', ...results }
          }
 
-         if (!openedDialog()) {
-           return {
-             reached: false,
-             reason: 'no dialog opened',
-             buttons: clickable().map(textOf).filter(Boolean).slice(0, 25),
-           }
-         }
-
-         // Step 2: switch to the OAuth tab if the dialog has one.
-         const oauthTab = clickable().find((el) => /oauth/i.test(textOf(el)))
-         if (oauthTab) {
-           oauthTab.click()
-           await sleep(500)
-         }
-
-         // Step 3: click the login trigger inside the dialog.
-         const dialog = document.querySelector('[role="dialog"], [data-state="open"]') || document
-         const loginBtn = [...dialog.querySelectorAll('button')].find((b) =>
-           /oauth|login|登录|open/i.test(textOf(b))
-         )
-         if (!loginBtn) {
-           return {
-             reached: false,
-             reason: 'no login button in dialog',
-             buttons: [...dialog.querySelectorAll('button')].map(textOf).slice(0, 20),
-           }
-         }
-         loginBtn.click()
-
-         // Step 4: the guide panel (not the raw error) must appear.
          for (let i = 0; i < 40; i++) {
            await sleep(250)
-           const body = document.body.innerText
-           if (/bookmarklet|Login on the provider/i.test(body)) {
+           if ($('web-login-guide')) {
              return {
                reached: true,
-               hasBookmarklet: /bookmarklet/i.test(body),
-               hasGuideSteps: /Field:/i.test(body),
-               showsRawError: /In-app login window is not available/i.test(body),
+               hasBookmarklet: !!document.querySelector('[data-testid="web-login-guide"] a[href^="javascript:"]'),
+               showsRawError: /In-app login window is not available/i.test(document.body.innerText),
+               ...results,
              }
            }
          }
-         return { reached: false, reason: 'guide panel never appeared', body: document.body.innerText.slice(0, 300) }
+
+         return {
+           reached: false,
+           reason: 'guide panel never appeared',
+           bodyText: document.body.innerText.slice(0, 240),
+           ...results,
+         }
        })()`
     )
     check('guide panel renders after OAuth click', guidePanel.reached === true, JSON.stringify(guidePanel).slice(0, 220))

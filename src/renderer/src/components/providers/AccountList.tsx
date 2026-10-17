@@ -166,7 +166,7 @@ export function AccountList({
           <p className="text-sm text-muted-foreground mb-4">
             {t('providers.clickToAddProvider')}
           </p>
-          <Button onClick={onAddAccount}>
+          <Button onClick={onAddAccount} data-testid="add-account-button">
             <Plus className="mr-2 h-4 w-4" />
             {t('providers.addAccount')}
           </Button>

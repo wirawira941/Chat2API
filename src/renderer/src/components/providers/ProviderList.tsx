@@ -125,7 +125,7 @@ export function ProviderList({
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh Status
           </Button>
-          <Button size="sm" onClick={onAddProvider}>
+          <Button size="sm" onClick={onAddProvider} data-testid="add-provider-button">
             <Plus className="mr-2 h-4 w-4" />
             Add Provider
           </Button>

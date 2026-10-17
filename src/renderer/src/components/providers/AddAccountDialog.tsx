@@ -452,7 +452,10 @@ export function AddAccountDialog({
 
                 <TabsContent value="manual" className="mt-4">
                   {webLoginGuide && (
-                    <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+                    <div
+                      data-testid="web-login-guide"
+                      className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"
+                    >
                       <p className="mb-2 font-medium">
                         Login on the provider's site, then import the {webLoginGuide.tokenLabel}.
                       </p>
@@ -547,6 +550,7 @@ export function AddAccountDialog({
                     <Button 
                       onClick={handleOpenOAuthBrowser}
                       disabled={isOAuthLoading}
+                      data-testid="oauth-login-button"
                     >
                       {isOAuthLoading ? (
                         <>
