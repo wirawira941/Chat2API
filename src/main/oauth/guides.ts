@@ -38,17 +38,41 @@ export const TOKEN_EXTRACTION_GUIDES: Record<string, TokenExtractionGuide> = {
     storageType: 'cookie',
     placeholder: 'Paste the Ticket obtained from Qwen',
   },
-  glm: {
-    loginUrl: 'https://chatglm.cn',
+  'qwen-ai': {
+    loginUrl: 'https://chat.qwen.ai',
     steps: [
-      'Open chatglm.cn and log in normally in your browser',
+      'Open chat.qwen.ai and log in normally in your browser',
       'Copy the token with the bookmarklet below (phone steps are listed under it)',
       'Paste the token into the field at the bottom of this panel',
     ],
     tokenKey: 'token',
     tokenLabel: 'Token',
     storageType: 'localStorage',
-    placeholder: 'Paste the Token obtained from GLM',
+    placeholder: 'Paste the JWT token obtained from chat.qwen.ai',
+  },
+  qwenAi: {
+    loginUrl: 'https://chat.qwen.ai',
+    steps: [
+      'Open chat.qwen.ai and log in normally in your browser',
+      'Copy the token with the bookmarklet below (phone steps are listed under it)',
+      'Paste the token into the field at the bottom of this panel',
+    ],
+    tokenKey: 'token',
+    tokenLabel: 'Token',
+    storageType: 'localStorage',
+    placeholder: 'Paste the JWT token obtained from chat.qwen.ai',
+  },
+  glm: {
+    loginUrl: 'https://chatglm.cn',
+    steps: [
+      'Open chatglm.cn and log in normally in your browser',
+      'Copy the refresh token with the bookmarklet below (phone steps are listed under it)',
+      'Paste it into the field at the bottom of this panel — exchanged server-side for access token',
+    ],
+    tokenKey: 'chatglm_refresh_token',
+    tokenLabel: 'Refresh Token',
+    storageType: 'localStorage',
+    placeholder: 'Paste the refresh_token obtained from chatglm.cn',
   },
   kimi: {
     loginUrl: 'https://www.kimi.com',
