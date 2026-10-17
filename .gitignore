@@ -58,3 +58,14 @@ src/renderer/next-app/
 
 # Backup
 backup/
+
+# Headless (Electron-free) build: output is produced in CI, never committed
+/headless-dist/
+*.tar.gz
+
+# Runtime data written by the headless server
+/.chat2api-web/
+/.chat2api/
+
+# Copied from src/renderer at build time
+/server/renderer/favicon.png

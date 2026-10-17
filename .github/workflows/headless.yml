@@ -1,0 +1,105 @@
+name: Headless (Termux / web)
+
+# Verifies the Electron-free build: the whole app runs on plain Node with a
+# browser dashboard. Nothing here needs Electron, X, or a GPU, so it runs
+# unchanged on GitHub's runners and on a phone.
+#
+# Browser checks run in real Chromium via the DevTools protocol — that is the
+# part that cannot be trusted on a stock Termux box, where Chromium traps in
+# ICU before a single page loads.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'server/**'
+      - 'src/**'
+      - 'package.json'
+      - '.github/workflows/headless.yml'
+  pull_request:
+    paths:
+      - 'server/**'
+      - 'src/**'
+      - 'package.json'
+      - '.github/workflows/headless.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # --ignore-scripts keeps `canvas` (a devDependency used by desktop tests)
+      # from compiling; the headless build does not need it.
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Build headless bundle
+        run: npm run build:headless
+
+      - name: Show artefact size
+        run: |
+          du -sh headless-dist
+          ls -la headless-dist
+          echo "main.cjs: $(du -h headless-dist/main.cjs | cut -f1)"
+
+      # Proves the artefact is self-contained: run it from a directory with no
+      # node_modules in sight.
+      - name: Run standalone (no node_modules)
+        run: |
+          mkdir -p /tmp/standalone
+          cp -r headless-dist/. /tmp/standalone/
+          cd /tmp/standalone
+          CHAT2API_USER_DATA=/tmp/c2a-data CHAT2API_WEB_PORT=3100 \
+            node main.cjs > /tmp/standalone.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:3100/api/health && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3100/api/health
+          echo
+          tail -20 /tmp/standalone.log
+
+      - name: API smoke test
+        run: node server/tests/api.test.mjs --url http://127.0.0.1:3100
+
+      - name: Browser smoke test (Chromium + CDP)
+        run: node server/smoke.mjs --url http://127.0.0.1:3100 --screenshot /tmp/dashboard.png
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+
+      - name: Upload dashboard screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-screenshot
+          path: /tmp/dashboard.png
+          if-no-files-found: ignore
+
+      - name: Package artefact
+        run: |
+          cd headless-dist
+          tar -czf ../chat2api-headless.tar.gz .
+          cd ..
+          ls -lh chat2api-headless.tar.gz
+
+      - name: Upload artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat2api-headless
+          path: chat2api-headless.tar.gz
+          retention-days: 30
+
+      - name: Dump server log on failure
+        if: failure()
+        run: |
+          echo '--- standalone.log ---'
+          cat /tmp/standalone.log || true
