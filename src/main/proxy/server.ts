@@ -12,6 +12,7 @@ import managementRoutes from './routes/management'
 import { proxyStatusManager } from './status'
 import { storeManager } from '../store/store'
 import { sessionManager } from './sessionManager'
+import { requestPacer } from './requestPacer'
 
 const SLOW_REQUEST_THRESHOLD_MS = 1500
 
@@ -280,7 +281,11 @@ export class ProxyServer {
 
     this.port = port || proxyStatusManager.getPort()
     this.host = host || proxyStatusManager.getHost()
-    
+
+    // Apply the operator's pacing policy before the first request arrives.
+    const appConfig = storeManager.getConfig()
+    requestPacer.setPolicy(appConfig.requestMinInterval ?? 0, appConfig.requestJitter ?? 0)
+
     sessionManager.initialize()
 
     return new Promise((resolve) => {

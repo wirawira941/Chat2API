@@ -13,6 +13,8 @@ import { storeManager } from '../store/store'
 export class LoadBalancer {
   private roundRobinIndex: Map<string, number> = new Map()
   private failedAccounts: Map<string, { count: number; lastFailTime: number }> = new Map()
+  /** Accounts benched after the provider explicitly reported rate limiting. */
+  private rateLimitedUntil: Map<string, number> = new Map()
   private static readonly FAIL_THRESHOLD = 3
   private static readonly RECOVERY_TIME = 60000 // 1 minute
 
@@ -28,16 +30,54 @@ export class LoadBalancer {
   }
 
   /**
+   * Bench an account after the provider answered 429 / flagged the session.
+   * Unlike a generic failure this needs no threshold: the provider already told
+   * us to stop, so the account is skipped until the cooldown elapses.
+   */
+  markAccountRateLimited(accountId: string, cooldownMs: number): void {
+    const until = Date.now() + Math.max(0, cooldownMs)
+    this.rateLimitedUntil.set(accountId, until)
+    console.warn(
+      `[LoadBalancer] Account ${accountId} rate limited; benched for ${Math.round(
+        Math.max(0, cooldownMs) / 1000
+      )}s`
+    )
+  }
+
+  /** Whether an account is still inside its rate-limit cooldown. */
+  isAccountRateLimited(accountId: string): boolean {
+    const until = this.rateLimitedUntil.get(accountId)
+    if (!until) return false
+    if (Date.now() >= until) {
+      this.rateLimitedUntil.delete(accountId)
+      return false
+    }
+    return true
+  }
+
+  /** Remaining cooldown for an account, in ms (0 when not benched). */
+  getRateLimitRemaining(accountId: string): number {
+    const until = this.rateLimitedUntil.get(accountId)
+    if (!until) return 0
+    return Math.max(0, until - Date.now())
+  }
+
+  /**
    * Clear account failure status
    */
   clearAccountFailure(accountId: string): void {
     this.failedAccounts.delete(accountId)
+    this.rateLimitedUntil.delete(accountId)
   }
 
   /**
    * Check if account is in failure state
    */
   private isAccountInFailure(accountId: string): boolean {
+    // A provider-reported rate limit outranks the generic failure counter: the
+    // account is unusable until the cooldown expires, regardless of count.
+    if (this.isAccountRateLimited(accountId)) return true
+
     const failure = this.failedAccounts.get(accountId)
     if (!failure) return false
 

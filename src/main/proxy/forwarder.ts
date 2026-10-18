@@ -24,6 +24,7 @@ import { PerplexityStreamHandler } from './adapters/perplexity-stream'
 import { ToolCallingEngine } from './toolCalling/ToolCallingEngine'
 import type { ToolCallingTransformResult } from './toolCalling/types'
 import { sessionManager } from './sessionManager'
+import { requestPacer } from './requestPacer'
 import {
   createContextManagementService,
   SummaryGenerator,
@@ -235,8 +236,15 @@ export class RequestForwarder {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       if (attempt > 0) {
-        await this.delay(5000)
+        // Exponential backoff with jitter: a failed attempt is exactly when a
+        // provider is most likely to be watching for hammering.
+        const backoff = Math.min(30000, 2000 * 2 ** (attempt - 1))
+        await this.delay(backoff + Math.floor(Math.random() * 1000))
       }
+
+      // Serialise per account and keep a human-like gap between calls, so a
+      // burst from the proxy does not look like scripted abuse upstream.
+      await requestPacer.acquire(account.id)
 
       let modifiedRequest = request
 

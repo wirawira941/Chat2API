@@ -9,6 +9,7 @@ import { PassThrough } from 'stream'
 import { ChatCompletionRequest, ChatCompletionResponse, ProxyContext } from '../types'
 import { loadBalancer } from '../loadbalancer'
 import { requestForwarder } from '../forwarder'
+import { requestPacer } from '../requestPacer'
 import { streamHandler } from '../stream'
 import { proxyStatusManager } from '../status'
 import { modelMapper } from '../modelMapper'
@@ -192,7 +193,15 @@ router.post('/completions', async (ctx: Context) => {
     if (!result.success) {
       proxyStatusManager.recordRequestFailure(latency)
 
-      if (result.status && result.status >= 400 && result.status !== 429) {
+      if (result.status === 429) {
+        // 429 is the provider telling us to back off. Benching the account is
+        // the only response that prevents the next request from making it
+        // worse; previously this case was skipped and the same token kept
+        // being used until the account was blocked outright.
+        loadBalancer.markAccountRateLimited(account.id, config.rateLimitCooldown)
+        requestPacer.reset()
+        ctx.set('Retry-After', String(Math.ceil(config.rateLimitCooldown / 1000)))
+      } else if (result.status && result.status >= 400) {
         loadBalancer.markAccountFailed(account.id)
       }
 

@@ -75,6 +75,9 @@ jobs:
       - name: Bookmarklet unit tests
         run: node server/tests/bookmarklet.test.mjs
 
+      - name: Request pacer unit tests
+        run: node server/tests/requestPacer.test.mjs
+
       - name: Injected-script syntax guard
         run: node server/tests/smoke-scripts.test.mjs
 

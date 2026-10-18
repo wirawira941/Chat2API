@@ -203,6 +203,17 @@ export interface AppConfig {
   requestTimeout: number
   /** Retry count */
   retryCount: number
+  /**
+   * Minimum gap between consecutive upstream requests on the SAME account, in
+   * milliseconds. Provider web endpoints are rate-limited per account and a
+   * burst looks like abuse, so requests are spaced out rather than fired back
+   * to back. 0 disables pacing.
+   */
+  requestMinInterval: number
+  /** Extra randomised jitter added on top of requestMinInterval (ms). */
+  requestJitter: number
+  /** How long an account is benched after the provider reports rate limiting. */
+  rateLimitCooldown: number
   /** API Key list */
   apiKeys: ApiKey[]
   /** Whether to enable API Key authentication */
@@ -807,6 +818,11 @@ export const DEFAULT_CONFIG: AppConfig = {
   requestLogConfig: DEFAULT_REQUEST_LOG_CONFIG,
   requestTimeout: 60000,
   retryCount: 3,
+  // 2–5s spread between requests on one account, matching what a human typing
+  // in the web UI would produce. Retries add their own backoff on top.
+  requestMinInterval: 3000,
+  requestJitter: 2000,
+  rateLimitCooldown: 120000,
   apiKeys: [],
   enableApiKey: false,
   oauthProxyMode: 'system',
